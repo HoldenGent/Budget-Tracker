@@ -1,0 +1,66 @@
+.dashboard-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 100vh;
+  }
+  
+  .sidebar {
+    padding: 1.5rem;
+    color: white;
+    background-color: #17202a;
+  }
+  
+  .sidebar-brand h1 {
+    margin: 0 0 2rem;
+    font-size: 1.25rem;
+  }
+  
+  .sidebar-navigation {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .sidebar-navigation a {
+    padding: 0.75rem 1rem;
+    color: #d5d8dc;
+    text-decoration: none;
+    border-radius: 0.5rem;
+  }
+  
+  .sidebar-navigation a:hover {
+    background-color: #273746;
+  }
+  
+  .sidebar-navigation a.active {
+    color: white;
+    background-color: #2e86c1;
+  }
+  
+  .dashboard-content {
+    padding: 2rem;
+  }
+  
+  @media (max-width: 700px) {
+    .dashboard-layout {
+      grid-template-columns: 1fr;
+    }
+  
+    .sidebar {
+      padding: 1rem;
+    }
+  
+    .sidebar-brand h1 {
+      margin-bottom: 1rem;
+    }
+  
+    .sidebar-navigation {
+      flex-direction: row;
+      overflow-x: auto;
+    }
+  
+    .dashboard-content {
+      padding: 1rem;
+    }
+  }
+  
