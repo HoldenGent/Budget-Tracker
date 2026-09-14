@@ -1,7 +1,12 @@
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
+// need to support other currencies later
+export function formatCurrency(
+  amount: number,
+  currency = "USD",
+  locale = "en-US",
+): string {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
-    currency: "USD",
+    currency,
   }).format(amount);
 }
 

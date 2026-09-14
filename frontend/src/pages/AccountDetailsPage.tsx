@@ -1,9 +1,11 @@
 import { Link, useParams } from "react-router-dom";
-import { useAccounts } from "../hooks/useAccounts";
+import { useFinance } from "../context/FinanceContext";
+import { calculateAccountBalance } from "../utils/accounts";
+import { formatCurrency } from "../utils/currency";
 
 export default function AccountDetailsPage() {
   const { accountId } = useParams();
-  const { accounts } = useAccounts();
+  const { accounts, transactions } = useFinance();
 
   const account = accounts.find(
     (currentAccount) => currentAccount.id === accountId,
@@ -24,10 +26,9 @@ export default function AccountDetailsPage() {
     );
   }
 
-  const formattedBalance = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(account.balance);
+  const formattedBalance = formatCurrency(
+    calculateAccountBalance(account, transactions),
+  );
 
   return (
     <main className="page">

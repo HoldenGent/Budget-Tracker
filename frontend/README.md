@@ -1,4 +1,29 @@
-# React + TypeScript + Vite
+# Budget Tracker
+
+## Regression tests
+
+From the `frontend` directory, run:
+
+```sh
+npm ci              # Install the locked dependencies on a fresh checkout
+npm test            # Run all tests once
+npm run test:watch  # Re-run tests while editing
+npm run check       # Tests, production build, and lint
+```
+
+`tests/accounts.test.ts` covers income/expense calculations, account isolation,
+negative balances, and migration from the legacy `balance` field.
+`tests/persistence.test.tsx` covers account and expense entry through the real
+pages, shared balance displays, saved record restoration, legacy migration with
+existing transactions, malformed JSON, and account/transaction deletion.
+
+Tests run with Vitest and React Testing Library in jsdom, using isolated
+localStorage cleared before each test. They never access your browser's saved
+accounts. The reload regression unmounts the entire app and mounts a fresh
+provider with the same storage; it does not launch a real browser or test
+cross-device sync. Add a regression here when fixing a persistence bug.
+
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

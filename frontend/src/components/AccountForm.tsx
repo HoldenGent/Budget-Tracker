@@ -47,7 +47,7 @@ export default function AccountForm({ onAdd }: AccountFormProps) {
       id: crypto.randomUUID(),
       name: name.trim(),
       type,
-      balance: numericBalance,
+      startingBalance: numericBalance,
     });
 
     setName("");

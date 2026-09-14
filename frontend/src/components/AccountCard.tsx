@@ -1,15 +1,15 @@
 import { Link } from "react-router-dom";
+import { formatCurrency } from "../utils/currency";
 import type { Account } from "../types/Account";
 
 interface AccountCardProps {
   account: Account;
+  currentBalance: number;
+  onDelete: (accountId: string) => void
 }
 
-export default function AccountCard({ account }: AccountCardProps) {
-  const formattedBalance = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(account.balance);
+export default function AccountCard({ account, currentBalance }: AccountCardProps) {
+  const formattedBalance = formatCurrency(currentBalance);
 
   return (
     <Link
