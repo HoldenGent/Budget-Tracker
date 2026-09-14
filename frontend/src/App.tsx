@@ -1,3 +1,5 @@
+import NewTransactionPage from "./pages/NewTransactionPage";
+import TransactionDetailsPage from "./pages/TransactionDetailsPage";
 import { Route, Routes } from "react-router-dom";
 import AppLayout from "./layouts/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
@@ -13,6 +15,8 @@ export default function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
+        <Route path="/transactions/new" element={<NewTransactionPage />} />
+        <Route path="/transactions/:transactionId" element={<TransactionDetailsPage />} />
         <Route path="/budgets" element={<BudgetsPage />} />
         <Route path="/accounts/:accountId"element={<AccountDetailsPage />}
         />

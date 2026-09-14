@@ -1,36 +1,61 @@
-import TransactionForm from "../components/TransactionForm";
+import { Link } from "react-router-dom";
 import { useFinance } from "../context/FinanceContext";
+import { formatCurrency } from "../utils/currency";
 
 export default function TransactionsPage() {
-  const { accounts, transactions, addTransaction } = useFinance();
+  const { accounts, transactions } = useFinance();
+
+  // New entries are appended, so reverse a copy first. The stable date sort
+  // keeps most recent entries first when their transaction dates match.
+      // when the dates match localeCompare returns 0 :(
+  const sortedTransactions = transactions.toReversed().toSorted(
+    (a, b) => b.date.localeCompare(a.date),
+  );
 
   return (
     <main className="page">
-      <header className="page-header">
-        <h1 className="page-title">Transactions</h1>
-
-        <p className="page-description">
-          Record and review your income and expenses.
-        </p>
+      <header className="page-header transactions-header">
+        <div>
+          <h1 className="page-title">Transactions</h1>
+        </div>
+        <Link className="button" to="/transactions/new">Add transaction</Link>
       </header>
 
-      <TransactionForm
-        accounts={accounts}
-        onAdd={addTransaction}
-      />
-
       <section className="page-section">
-        <h2>Recent transactions</h2>
-
-        {transactions.length === 0 ? (
+        {sortedTransactions.length === 0 ? (
           <div className="empty-state">
             <p>No transactions yet.</p>
           </div>
         ) : (
-          <p>
-            You have {transactions.length} transaction
-            {transactions.length === 1 ? "" : "s"}.
-          </p>
+          <div className="transaction-list">
+            {sortedTransactions.map((transaction) => {
+              const account = accounts.find(
+                (account) => account.id === transaction.accountId,
+              );
+
+              return (
+                <Link
+                  className="card account-card account-card-link transaction-card"
+                  key={transaction.id}
+                  to={`/transactions/${transaction.id}`}
+                >
+                  <div className="transaction-card-header">
+                    <h3 className="card-title">{transaction.description}</h3>
+                    <p className={`transaction-amount transaction-amount--${transaction.type.toLowerCase()}`}>
+                      {transaction.type === "Expense" ? "−" : "+"}
+                      {formatCurrency(transaction.amount)}
+                    </p>
+                  </div>
+                  <div className="transaction-meta">
+                    <span>{account?.name ?? "Unknown account"}</span>
+                    <span>{transaction.category}</span>
+                    <time dateTime={transaction.date}>{transaction.date}</time>
+                    <span>{transaction.type}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         )}
       </section>
     </main>

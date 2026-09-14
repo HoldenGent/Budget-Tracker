@@ -1,5 +1,5 @@
 import React, { StrictMode } from 'react';
-import { act, render, renderHook, screen } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { expect, it } from 'vitest';
@@ -26,6 +26,8 @@ it('creates an account and expense through the UI and restores both after a fres
   await user.click(screen.getByRole('button', { name: 'Add account' }));
   expect(screen.getByRole('link', { name: 'Main Checking $1,000.00' })).toBeInTheDocument();
   await user.click(screen.getByRole('link', { name: 'Transactions', exact: true }));
+  expect(screen.queryByLabelText('Description')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('link', { name: 'Add transaction' }));
   await user.type(screen.getByLabelText('Description'), 'Groceries');
   await user.type(screen.getByLabelText('Amount'), '125.50');
   await user.click(screen.getByRole('button', { name: 'Add transaction' }));
@@ -48,7 +50,37 @@ it('creates an account and expense through the UI and restores both after a fres
   await user.click(screen.getByRole('link', { name: 'Accounts', exact: true }));
   expect(screen.getByRole('link', { name: 'Main Checking $874.50' })).toBeInTheDocument();
   await user.click(screen.getByRole('link', { name: 'Transactions', exact: true }));
-  expect(screen.getByText(/You have 1 transaction/)).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Groceries' })).toBeInTheDocument();
+  expect(screen.getByText('−$125.50')).toBeInTheDocument();
+});
+
+it('shows signed income and expenses and persists deletion through the history UI', async () => {
+  const user = userEvent.setup();
+  const income = { ...expense, id: 'income', type: 'Income', amount: 200, description: 'Paycheck', date: '2026-09-15' };
+  localStorage.setItem(accountsKey, JSON.stringify([account]));
+  localStorage.setItem(transactionsKey, JSON.stringify([expense, income]));
+  const app = renderApp('/transactions');
+  expect(screen.getByText('+$200.00')).toHaveClass('transaction-amount--income');
+  expect(screen.getByText('−$125.50')).toHaveClass('transaction-amount--expense');
+  expect(screen.getAllByRole('link').filter((card) => card.querySelector('h3')).map((card) => card.querySelector('h3')?.textContent))
+    .toEqual(['Paycheck', 'Groceries']);
+
+  expect(screen.queryByRole('button', { name: /Delete/ })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('link', { name: /Groceries/ }));
+  expect(screen.getByLabelText('Description')).toHaveValue('Groceries');
+  await user.click(screen.getByRole('button', { name: 'Delete transaction' }));
+  expect(screen.queryByRole('heading', { name: 'Groceries' })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Paycheck' })).toBeInTheDocument();
+  await user.click(screen.getByRole('link', { name: 'Accounts', exact: true }));
+  expect(screen.getByRole('link', { name: 'Main Checking $1,200.00' })).toBeInTheDocument();
+  app.unmount();
+  renderApp('/transactions');
+  expect(screen.queryByRole('heading', { name: 'Groceries' })).not.toBeInTheDocument();
+  expect(screen.getByText('+$200.00')).toBeInTheDocument();
+  await user.click(screen.getByRole('link', { name: /Paycheck/ }));
+  await user.click(screen.getByRole('button', { name: 'Delete transaction' }));
+  expect(screen.getByText('No transactions yet.')).toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem(transactionsKey)!)).toEqual([]);
 });
 
 it('loads legacy accounts with existing transactions and saves the migrated opening balance', () => {
@@ -91,4 +123,73 @@ it('persists transaction deletion and removes only the deleted account’s trans
   const restored = renderHook(useFinance, { wrapper: FinanceProvider });
   expect(restored.result.current.accounts).toEqual([otherAccount]);
   expect(restored.result.current.transactions).toEqual([otherExpense]);
+});
+
+
+it('edits all transaction fields without duplicating it and restores updated balances', async () => {
+  const user = userEvent.setup();
+  const savings = { ...account, id: 'savings', name: 'Savings', startingBalance: 500 };
+  localStorage.setItem(accountsKey, JSON.stringify([account, savings]));
+  localStorage.setItem(transactionsKey, JSON.stringify([expense]));
+  const app = renderApp('/transactions');
+  await user.click(screen.getByRole('link', { name: /Groceries/ }));
+  expect(screen.getByLabelText('Amount')).toHaveValue('125.5');
+  await user.clear(screen.getByLabelText('Amount'));
+  await user.type(screen.getByLabelText('Amount'), '0');
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
+  expect(screen.getByText('Please enter an amount greater than zero.')).toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem(transactionsKey)!)).toEqual([expense]);
+  await user.clear(screen.getByLabelText('Amount'));
+  await user.type(screen.getByLabelText('Amount'), '250');
+  await user.clear(screen.getByLabelText('Description'));
+  await user.type(screen.getByLabelText('Description'), 'Refund');
+  await user.selectOptions(screen.getByLabelText('Account'), 'savings');
+  await user.selectOptions(screen.getByLabelText('Type'), 'Income');
+  await user.selectOptions(screen.getByLabelText('Category'), 'Income');
+  // Date inputs are set via their native change event in jsdom.
+  fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-09-16' } });
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
+  expect(screen.getByRole('link', { name: /Refund/ })).toHaveTextContent('+$250.00');
+  expect(JSON.parse(localStorage.getItem(transactionsKey)!)).toEqual([
+    { ...expense, description: 'Refund', amount: 250, accountId: 'savings', type: 'Income', category: 'Income', date: '2026-09-16' },
+  ]);
+  app.unmount();
+  renderApp('/accounts');
+  expect(screen.getByRole('link', { name: 'Main Checking $1,000.00' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Savings $750.00' })).toBeInTheDocument();
+  await user.click(screen.getByRole('link', { name: 'Transactions', exact: true }));
+  await user.click(screen.getByRole('link', { name: /Refund/ }));
+  expect(screen.getByLabelText('Amount')).toHaveValue('250');
+  await user.clear(screen.getByLabelText('Description'));
+  await user.type(screen.getByLabelText('Description'), 'Unsaved change');
+  await user.click(screen.getByRole('link', { name: /Back to transactions/ }));
+  expect(screen.getByRole('heading', { name: 'Refund' })).toBeInTheDocument();
+});
+
+it('puts new same-day expenses first while keeping date order after reload', async () => {
+  const user = userEvent.setup();
+  const saved = [expense, { ...expense, id: 'later-date', description: 'Later date', date: '2026-09-15' }];
+  localStorage.setItem(accountsKey, JSON.stringify([account]));
+  localStorage.setItem(transactionsKey, JSON.stringify(saved));
+  const app = renderApp('/transactions');
+  for (const description of ['Lunch', 'Dinner']) {
+    await user.click(screen.getByRole('link', { name: 'Add transaction' }));
+    await user.type(screen.getByLabelText('Description'), description);
+    await user.type(screen.getByLabelText('Amount'), '10');
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: expense.date } });
+    await user.click(screen.getByRole('button', { name: 'Add transaction' }));
+  }
+  const titles = () => screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent);
+  expect(titles()).toEqual(['Later date', 'Dinner', 'Lunch', 'Groceries']);
+  expect(JSON.parse(localStorage.getItem(transactionsKey)!).map((item: { description: string }) => item.description))
+    .toEqual(['Groceries', 'Later date', 'Lunch', 'Dinner']);
+  app.unmount();
+  renderApp('/transactions');
+  expect(titles()).toEqual(['Later date', 'Dinner', 'Lunch', 'Groceries']);
+});
+
+it('handles an invalid or deleted transaction URL', () => {
+  renderApp('/transactions/missing');
+  expect(screen.getByRole('heading', { name: 'Transaction not found' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Back to transactions' })).toHaveAttribute('href', '/transactions');
 });

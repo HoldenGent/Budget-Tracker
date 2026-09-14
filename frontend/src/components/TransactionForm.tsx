@@ -13,6 +13,7 @@ import {
 interface TransactionFormProps {
   accounts: Account[];
   onAdd: (transaction: Transaction) => void;
+  initialTransaction?: Transaction;
 }
 
 const transactionTypes: TransactionType[] = [
@@ -37,16 +38,17 @@ function getTodayDate(): string {
 export default function TransactionForm({
   accounts,
   onAdd,
+  initialTransaction,
 }: TransactionFormProps) {
   const [accountId, setAccountId] = useState(
-    accounts[0]?.id ?? "",
+    initialTransaction?.accountId ?? accounts[0]?.id ?? "",
   );
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(initialTransaction?.description ?? "");
   const [type, setType] =
-    useState<TransactionType>("Expense");
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("Other");
-  const [date, setDate] = useState(getTodayDate());
+    useState<TransactionType>(initialTransaction?.type ?? "Expense");
+  const [amount, setAmount] = useState(initialTransaction?.amount.toString() ?? "");
+  const [category, setCategory] = useState(initialTransaction?.category ?? "Other");
+  const [date, setDate] = useState(initialTransaction?.date ?? getTodayDate());
   const [error, setError] = useState("");
 
   function handleAmountChange(
@@ -65,7 +67,7 @@ export default function TransactionForm({
   ) {
     event.preventDefault();
 
-    if (!accountId) {
+    if (!accounts.some((account) => account.id === accountId)) {
       setError("Please select an account.");
       return;
     }
@@ -77,7 +79,7 @@ export default function TransactionForm({
 
     const numericAmount = parseCurrency(amount);
 
-    if (numericAmount === null || numericAmount <= 0) {
+    if (numericAmount === null || !Number.isFinite(numericAmount) || numericAmount <= 0) {
       setError("Please enter an amount greater than zero.");
       return;
     }
@@ -88,7 +90,7 @@ export default function TransactionForm({
     }
 
     onAdd({
-      id: crypto.randomUUID(),
+      id: initialTransaction?.id ?? crypto.randomUUID(),
       accountId,
       description: description.trim(),
       amount: numericAmount,
@@ -96,6 +98,8 @@ export default function TransactionForm({
       date,
       category,
     });
+
+    if (initialTransaction) return;
 
     setDescription("");
     setType("Expense");
@@ -108,7 +112,7 @@ export default function TransactionForm({
   if (accounts.length === 0) {
     return (
       <div className="card">
-        <h2>Add a transaction</h2>
+        <h2>{initialTransaction ? "Edit transaction" : "Add a transaction"}</h2>
 
         <p className="card-subtitle">
           Add an account before creating transactions.
@@ -119,7 +123,7 @@ export default function TransactionForm({
 
   return (
     <div className="card">
-      <h2>Add a transaction</h2>
+      <h2>{initialTransaction ? "Edit transaction" : "Add a transaction"}</h2>
 
       <p className="card-subtitle">
         Record income or spending for one of your accounts.
@@ -285,7 +289,7 @@ export default function TransactionForm({
         )}
 
         <button className="button" type="submit">
-          Add transaction
+          {initialTransaction ? "Save changes" : "Add transaction"}
         </button>
       </form>
     </div>

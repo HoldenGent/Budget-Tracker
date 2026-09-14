@@ -9,6 +9,19 @@
   margin-bottom: 24px;
 }
 
+.transactions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.transactions-header .button {
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
 .page-title {
   margin-bottom: 8px;
   font-size: 2rem;

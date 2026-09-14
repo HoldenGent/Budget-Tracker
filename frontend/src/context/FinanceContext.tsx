@@ -21,6 +21,7 @@ interface FinanceContextValue {
   deleteAccount: (accountId: string) => void;
   addTransaction: (transaction: Transaction) => void;
   deleteTransaction: (transactionId: string) => void;
+  updateTransaction: (transaction: Transaction) => void;
 }
 
 interface FinanceProviderProps {
@@ -107,6 +108,12 @@ export function FinanceProvider({
     ]);
   }
 
+  function updateTransaction(updated: Transaction) {
+    setTransactions((current) => current.map((transaction) =>
+      transaction.id === updated.id ? updated : transaction,
+    ));
+  }
+
   function deleteTransaction(transactionId: string) {
     setTransactions((currentTransactions) =>
       currentTransactions.filter(
@@ -124,6 +131,7 @@ export function FinanceProvider({
       deleteAccount,
       addTransaction,
       deleteTransaction,
+      updateTransaction,
     }),
     [accounts, transactions],
   );
