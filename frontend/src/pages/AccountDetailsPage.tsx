@@ -11,14 +11,6 @@ export default function AccountDetailsPage() {
     (currentAccount) => currentAccount.id === accountId,
   );
 
-  // check if account name == account type 
-  const accountNameIsType: boolean = false;
-  if (account){
-    if(account.name.toLowerCase == account.type.toLowerCase){
-      const accountNameIsType: boolean = true;
-    }
-  }
-
   if (!account) {
     return (
       <main className="page">
@@ -34,6 +26,9 @@ export default function AccountDetailsPage() {
     );
   }
 
+  const accountNameIsType =
+    account.name.trim().toLowerCase() === account.type.toLowerCase();
+
   const formattedBalance = formatCurrency(
     calculateAccountBalance(account, transactions),
   );
@@ -46,7 +41,9 @@ export default function AccountDetailsPage() {
 
         
         <h1 className="page-title">{account.name}</h1>
-        {accountNameIsType ? <p className="page-description">{account.type}</p> : <p></p>}
+        {!accountNameIsType && (
+          <p className="page-description">{account.type}</p>
+        )}
         </div>
         <Link className="button" to="/accounts/new">Add account</Link>
       </header>
