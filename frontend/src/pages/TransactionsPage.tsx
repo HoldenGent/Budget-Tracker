@@ -7,11 +7,11 @@ export default function TransactionsPage() {
 
   // New entries are appended, so reverse a copy first. The stable date sort
   // keeps most recent entries first when their transaction dates match.
-      // when the dates match localeCompare returns 0 :(
+      // when the dates match localeCompare returns 0
   const sortedTransactions = transactions.toReversed().toSorted(
     (a, b) => b.date.localeCompare(a.date),
   );
-
+  // no transactions or display 
   return (
     <main className="page">
       <header className="page-header transactions-header">
@@ -20,11 +20,10 @@ export default function TransactionsPage() {
         </div>
         <Link className="button" to="/transactions/new">Add transaction</Link>
       </header>
-
       <section className="page-section">
         {sortedTransactions.length === 0 ? (
           <div className="empty-state">
-            <p>No transactions yet.</p>
+            <p>No transactions yet.</p> 
           </div>
         ) : (
           <div className="transaction-list">

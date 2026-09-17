@@ -9,7 +9,8 @@
   margin-bottom: 24px;
 }
 
-.transactions-header {
+.transactions-header,
+.page-header-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -17,7 +18,8 @@
   gap: 16px;
 }
 
-.transactions-header .button {
+.transactions-header .button,
+.page-header-actions .button {
   text-decoration: none;
   flex-shrink: 0;
 }

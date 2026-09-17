@@ -21,6 +21,8 @@ function renderApp(path = '/accounts') {
 it('creates an account and expense through the UI and restores both after a fresh mount', async () => {
   const user = userEvent.setup();
   const app = renderApp();
+  expect(screen.queryByLabelText('Account name')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('link', { name: 'Add account', exact: true }));
   await user.type(screen.getByLabelText('Account name'), 'Main Checking');
   await user.type(screen.getByLabelText('Starting balance'), '1000');
   await user.click(screen.getByRole('button', { name: 'Add account' }));
@@ -192,4 +194,18 @@ it('handles an invalid or deleted transaction URL', () => {
   renderApp('/transactions/missing');
   expect(screen.getByRole('heading', { name: 'Transaction not found' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Back to transactions' })).toHaveAttribute('href', '/transactions');
+});
+
+
+it('opens account creation from account details and leaves unsaved accounts out of storage', async () => {
+  localStorage.setItem(accountsKey, JSON.stringify([account]));
+  const user = userEvent.setup();
+  renderApp(`/accounts/${account.id}`);
+  await user.click(screen.getByRole('link', { name: 'Add account', exact: true }));
+  expect(screen.getByRole('heading', { name: 'New account' })).toBeInTheDocument();
+  await user.type(screen.getByLabelText('Account name'), 'Unsaved savings');
+  await user.click(screen.getByRole('link', { name: /Back to accounts/ }));
+  expect(screen.queryByLabelText('Account name')).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Main Checking $1,000.00' })).toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem(accountsKey)!)).toEqual([account]);
 });

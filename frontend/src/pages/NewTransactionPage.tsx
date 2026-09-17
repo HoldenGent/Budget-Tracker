@@ -1,3 +1,4 @@
+// form for addinga new transaction 
 import { Link, useNavigate } from "react-router-dom";
 import TransactionForm from "../components/TransactionForm";
 import { useFinance } from "../context/FinanceContext";
