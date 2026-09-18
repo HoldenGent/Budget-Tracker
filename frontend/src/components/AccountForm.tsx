@@ -4,6 +4,8 @@ import type { Account, AccountType } from "../types/Account";
 
 interface AccountFormProps {
   onAdd: (account: Account) => void;
+  initialAccount?: Account;
+  onCancel?: () => void;
 }
 
 const accountTypes: AccountType[] = [
@@ -13,10 +15,10 @@ const accountTypes: AccountType[] = [
   "Cash",
 ];
 
-export default function AccountForm({ onAdd }: AccountFormProps) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState<AccountType>("Checking");
-  const [balance, setBalance] = useState("");
+export default function AccountForm({ onAdd, initialAccount, onCancel }: AccountFormProps) {
+  const [name, setName] = useState(initialAccount?.name ?? "");
+  const [type, setType] = useState<AccountType>(initialAccount?.type ?? "Checking");
+  const [balance, setBalance] = useState(initialAccount?.startingBalance.toString() ?? "");
   const [error, setError] = useState("");
 
   function handleBalanceChange(event: ChangeEvent<HTMLInputElement>) {
@@ -38,17 +40,19 @@ export default function AccountForm({ onAdd }: AccountFormProps) {
 
     const numericBalance = Number(balance);
 
-    if (balance === "" || Number.isNaN(numericBalance)) {
+    if (balance === "" || !Number.isFinite(numericBalance)) {
       setError("Please enter a valid starting balance.");
       return;
     }
 
     onAdd({
-      id: crypto.randomUUID(),
+      id: initialAccount?.id ?? crypto.randomUUID(),
       name: name.trim(),
       type,
       startingBalance: numericBalance,
     });
+
+    if (initialAccount) return;
 
     setName("");
     setType("Checking");
@@ -58,10 +62,10 @@ export default function AccountForm({ onAdd }: AccountFormProps) {
 
   return (
     <div className="card">
-      <h2>Add an account</h2>
+      <h2>{initialAccount ? "Edit account" : "Add an account"}</h2>
 
       <p className="card-subtitle">
-        Enter the account details and current starting balance.
+        The starting balance is the opening amount before recorded transactions.
       </p>
 
       <form className="form" onSubmit={handleSubmit}>
@@ -128,8 +132,9 @@ export default function AccountForm({ onAdd }: AccountFormProps) {
         {error && <p className="form-error">{error}</p>}
 
         <button className="button" type="submit">
-          Add account
+          {initialAccount ? "Save changes" : "Add account"}
         </button>
+        {onCancel && <button className="button" type="button" onClick={onCancel}>Cancel</button>}
       </form>
     </div>
   );

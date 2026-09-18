@@ -9,6 +9,16 @@
   margin-bottom: 24px;
 }
 
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.account-edit {
+  margin-bottom: 24px;
+}
+
 .transactions-header,
 .page-header-actions {
   display: flex;

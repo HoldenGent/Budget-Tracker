@@ -197,10 +197,12 @@ it('handles an invalid or deleted transaction URL', () => {
 });
 
 
-it('opens account creation from account details and leaves unsaved accounts out of storage', async () => {
+it('offers account creation from the accounts list and leaves unsaved accounts out of storage', async () => {
   localStorage.setItem(accountsKey, JSON.stringify([account]));
   const user = userEvent.setup();
   renderApp(`/accounts/${account.id}`);
+  expect(screen.queryByRole('link', { name: 'Add account', exact: true })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('link', { name: /Back to accounts/ }));
   await user.click(screen.getByRole('link', { name: 'Add account', exact: true }));
   expect(screen.getByRole('heading', { name: 'New account' })).toBeInTheDocument();
   await user.type(screen.getByLabelText('Account name'), 'Unsaved savings');
@@ -208,4 +210,82 @@ it('opens account creation from account details and leaves unsaved accounts out 
   expect(screen.queryByLabelText('Account name')).not.toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Main Checking $1,000.00' })).toBeInTheDocument();
   expect(JSON.parse(localStorage.getItem(accountsKey)!)).toEqual([account]);
+});
+
+it('edits an account without losing its transactions and filters its clickable history', async () => {
+  const user = userEvent.setup();
+  const other = { ...account, id: 'other', name: 'Other account' };
+  const newer = { ...expense, id: 'newer', description: 'Lunch', amount: 10 };
+  const unrelated = { ...expense, id: 'unrelated', accountId: other.id, description: 'Other expense' };
+  localStorage.setItem(accountsKey, JSON.stringify([account, other]));
+  localStorage.setItem(transactionsKey, JSON.stringify([expense, unrelated, newer]));
+  const app = renderApp(`/accounts/${account.id}`);
+  expect(screen.queryByLabelText('Account name')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Lunch', 'Groceries']);
+  expect(screen.queryByRole('link', { name: /Other expense/ })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Edit account' }));
+  expect(screen.getByLabelText('Starting balance')).toHaveValue('1000');
+  await user.clear(screen.getByLabelText('Account name'));
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
+  expect(screen.getByText('Please enter an account name.')).toBeInTheDocument();
+  await user.type(screen.getByLabelText('Account name'), 'Savings');
+  await user.selectOptions(screen.getByLabelText('Account type'), 'Savings');
+  await user.clear(screen.getByLabelText('Starting balance'));
+  await user.type(screen.getByLabelText('Starting balance'), '2000');
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
+  expect(screen.getByText('$1,864.50')).toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem(accountsKey)!)).toEqual([
+    { ...account, name: 'Savings', type: 'Savings', startingBalance: 2000 }, other,
+  ]);
+  expect(JSON.parse(localStorage.getItem(transactionsKey)!)).toEqual([expense, unrelated, newer]);
+  app.unmount();
+  renderApp(`/accounts/${account.id}`);
+  expect(screen.getByRole('heading', { name: 'Savings', level: 1 })).toBeInTheDocument();
+  expect(screen.getByText('$1,864.50')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Edit account' }));
+  await user.clear(screen.getByLabelText('Account name'));
+  await user.type(screen.getByLabelText('Account name'), 'Discard this');
+  await user.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(screen.getByRole('heading', { name: 'Savings', level: 1 })).toBeInTheDocument();
+  await user.click(screen.getByRole('link', { name: /Groceries/ }));
+  expect(screen.getByRole('heading', { name: 'Groceries', level: 1 })).toBeInTheDocument();
+  expect(screen.getByLabelText('Amount')).toHaveValue('125.5');
+});
+
+it.each(['save', 'delete', 'back'])('returns to the originating account after transaction %s', async (action) => {
+  const user = userEvent.setup();
+  const other = { ...account, id: 'other', name: 'Other account' };
+  localStorage.setItem(accountsKey, JSON.stringify([account, other]));
+  localStorage.setItem(transactionsKey, JSON.stringify([expense]));
+  renderApp(`/accounts/${account.id}`);
+  await user.click(screen.getByRole('link', { name: /Groceries/ }));
+  expect(screen.getByRole('link', { name: /Back to account/ })).toHaveAttribute('href', `/accounts/${account.id}`);
+  if (action === 'save') {
+    // Moving the transaction must still return to the account we opened it from.
+    await user.selectOptions(screen.getByLabelText('Account'), other.id);
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+  } else if (action === 'delete') {
+    await user.click(screen.getByRole('button', { name: 'Delete transaction' }));
+  } else {
+    await user.clear(screen.getByLabelText('Description'));
+    await user.type(screen.getByLabelText('Description'), 'Unsaved');
+    await user.click(screen.getByRole('link', { name: /Back to account/ }));
+  }
+  expect(screen.getByRole('heading', { name: account.name, level: 1 })).toBeInTheDocument();
+  expect(screen.getByText(action === 'back' ? '$874.50' : '$1,000.00')).toBeInTheDocument();
+  if (action === 'back') {
+    expect(screen.getByRole('link', { name: /Groceries/ })).toBeInTheDocument();
+  } else {
+    expect(screen.getByText('No transactions yet.')).toBeInTheDocument();
+  }
+});
+
+it('falls back to transaction history when transaction details are opened directly', async () => {
+  localStorage.setItem(accountsKey, JSON.stringify([account]));
+  localStorage.setItem(transactionsKey, JSON.stringify([expense]));
+  const user = userEvent.setup();
+  renderApp(`/transactions/${expense.id}`);
+  expect(screen.getByRole('link', { name: /Back to transactions/ })).toHaveAttribute('href', '/transactions');
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
+  expect(screen.getByRole('heading', { name: 'Transactions', level: 1 })).toBeInTheDocument();
 });

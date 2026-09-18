@@ -1,3 +1,6 @@
+import { useState } from "react";
+import AccountForm from "../components/AccountForm";
+import TransactionList from "../components/TransactionList";
 import { Link, useParams } from "react-router-dom";
 import { useFinance } from "../context/FinanceContext";
 import { calculateAccountBalance } from "../utils/accounts";
@@ -5,7 +8,8 @@ import { formatCurrency } from "../utils/currency";
 
 export default function AccountDetailsPage() {
   const { accountId } = useParams();
-  const { accounts, transactions } = useFinance();
+  const { accounts, transactions, updateAccount } = useFinance();
+  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
 
   const account = accounts.find(
     (currentAccount) => currentAccount.id === accountId,
@@ -26,6 +30,7 @@ export default function AccountDetailsPage() {
     );
   }
 
+  // only want to show account type if it does not match the name
   const accountNameIsType =
     account.name.trim().toLowerCase() === account.type.toLowerCase();
 
@@ -45,12 +50,34 @@ export default function AccountDetailsPage() {
           <p className="page-description">{account.type}</p>
         )}
         </div>
-        <Link className="button" to="/accounts/new">Add account</Link>
+        <div className="account-actions">
+          <button className="button" type="button" onClick={() => setEditingAccountId(account.id)}>Edit account</button>
+        </div>
       </header>
 
+      {editingAccountId === account.id && (
+        <section className="page-section account-edit">
+          <AccountForm
+            key={account.id}
+            initialAccount={account}
+            onCancel={() => setEditingAccountId(null)}
+            onAdd={(updated) => {
+              updateAccount(updated);
+              setEditingAccountId(null);
+            }}
+          />
+        </section>
+      )}
       <section className="card">
         <h2 className="card-title">Current balance</h2>
         <p className="card-value">{formattedBalance}</p>
+      </section>
+      <section className="page-section">
+        <h2>Account transactions</h2>
+        <TransactionList
+          accounts={accounts}
+          transactions={transactions.filter((transaction) => transaction.accountId === account.id)}
+        />
       </section>
     </main>
   );

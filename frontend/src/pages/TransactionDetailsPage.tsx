@@ -1,19 +1,28 @@
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import TransactionForm from "../components/TransactionForm";
 import { useFinance } from "../context/FinanceContext";
 
 export default function TransactionDetailsPage() {
   const { transactionId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { accounts, transactions, updateTransaction, deleteTransaction } = useFinance();
   const transaction = transactions.find((item) => item.id === transactionId);
+
+  // Only return to an existing account page; direct links fall back to history.
+  const requestedReturnTo = location.state?.returnTo;
+  const returnAccount = accounts.find(
+    (account) => `/accounts/${account.id}` === requestedReturnTo,
+  );
+  const returnTo = returnAccount ? `/accounts/${returnAccount.id}` : "/transactions";
+  const backLabel = returnAccount ? "Back to account" : "Back to transactions";
 
   if (!transaction) {
     return (
       <main className="page">
         <h1 className="page-title">Transaction not found</h1>
         <p>This transaction may have been deleted or the link may be invalid.</p>
-        <Link to="/transactions">Back to transactions</Link>
+        <Link to={returnTo}>{backLabel}</Link>
       </main>
     );
   }
@@ -21,7 +30,7 @@ export default function TransactionDetailsPage() {
   return (
     <main className="page">
       <header className="page-header">
-        <Link to="/transactions">← Back to transactions</Link>
+        <Link to={returnTo}>← {backLabel}</Link>
         <h1 className="page-title">{transaction.description}</h1>
         <p className="page-description">Review or update this transaction.</p>
       </header>
@@ -31,7 +40,7 @@ export default function TransactionDetailsPage() {
         initialTransaction={transaction}
         onAdd={(updated) => {
           updateTransaction(updated);
-          navigate("/transactions");
+          navigate(returnTo);
         }}
       />
       <button
@@ -39,7 +48,7 @@ export default function TransactionDetailsPage() {
         type="button"
         onClick={() => {
           deleteTransaction(transaction.id);
-          navigate("/transactions");
+          navigate(returnTo);
         }}
       >
         Delete transaction
