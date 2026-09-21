@@ -1,3 +1,5 @@
+import { localDate, isCalendarDate } from "../utils/recurring";
+import type { Frequency } from "../types/RecurringTransaction";
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import type { Account } from "../types/Account";
@@ -12,7 +14,7 @@ import {
 
 interface TransactionFormProps {
   accounts: Account[];
-  onAdd: (transaction: Transaction) => void;
+  onAdd: (transaction: Transaction, frequency?: Frequency) => void;
   initialTransaction?: Transaction;
 }
 
@@ -32,7 +34,7 @@ const categories = [
 ];
 
 function getTodayDate(): string {
-  return new Date().toISOString().split("T")[0];
+  return localDate();
 }
 
 export default function TransactionForm({
@@ -49,6 +51,8 @@ export default function TransactionForm({
   const [amount, setAmount] = useState(initialTransaction?.amount.toString() ?? "");
   const [category, setCategory] = useState(initialTransaction?.category ?? "Other");
   const [date, setDate] = useState(initialTransaction?.date ?? getTodayDate());
+  const [recurring, setRecurring] = useState(false);
+  const [frequency, setFrequency] = useState<Frequency>("Monthly");
   const [error, setError] = useState("");
 
   function handleAmountChange(
@@ -84,7 +88,7 @@ export default function TransactionForm({
       return;
     }
 
-    if (!date) {
+    if (!isCalendarDate(date)) {
       setError("Please select a date.");
       return;
     }
@@ -97,7 +101,7 @@ export default function TransactionForm({
       type,
       date,
       category,
-    });
+    }, recurring ? frequency : undefined);
 
     if (initialTransaction) return;
 
@@ -284,6 +288,29 @@ export default function TransactionForm({
           </div>
         </div>
 
+        {!initialTransaction?.id.startsWith("recurring:") && (
+          <div className="form-group">
+            <label className="recurring-toggle">
+              <input type="checkbox" role="switch" checked={recurring}
+                onChange={(event) => setRecurring(event.target.checked)} />
+              Recurring transaction
+            </label>
+            {recurring && (
+              <div className="recurring-options">
+                <label className="form-label" htmlFor="recurring-frequency">Repeat</label>
+                <select id="recurring-frequency" className="form-select" value={frequency}
+                  onChange={(event) => setFrequency(event.target.value as Frequency)}>
+                  <option>Weekly</option><option>Monthly</option><option>Yearly</option>
+                </select>
+                <p className="card-subtitle">The date above is the first occurrence. 
+                  Due entries are recorded automatically when you open the app.</p>
+              </div>
+            )}
+          </div>
+        )}
+        {initialTransaction?.id.startsWith("recurring:") && (
+          <p>Changes here affect only this occurrence, not future recurring entries.</p>
+        )}
         {error && (
           <p className="form-error">{error}</p>
         )}

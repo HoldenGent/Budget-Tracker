@@ -4,7 +4,7 @@ import TransactionForm from "../components/TransactionForm";
 import { useFinance } from "../context/FinanceContext";
 
 export default function NewTransactionPage() {
-  const { accounts, addTransaction } = useFinance();
+  const { accounts, addTransaction, addRecurringTransaction } = useFinance();
   const navigate = useNavigate();
 
   return (
@@ -15,8 +15,9 @@ export default function NewTransactionPage() {
       </header>
       <TransactionForm
         accounts={accounts}
-        onAdd={(transaction) => {
-          addTransaction(transaction);
+        onAdd={(transaction, frequency) => {
+          if (frequency) addRecurringTransaction(transaction, frequency);
+          else addTransaction(transaction);
           navigate("/transactions");
         }}
       />

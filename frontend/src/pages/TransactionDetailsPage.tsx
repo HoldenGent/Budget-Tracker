@@ -6,7 +6,7 @@ export default function TransactionDetailsPage() {
   const { transactionId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { accounts, transactions, updateTransaction, deleteTransaction } = useFinance();
+  const { accounts, transactions, updateTransaction, deleteTransaction, convertToRecurring } = useFinance();
   const transaction = transactions.find((item) => item.id === transactionId);
 
   // Only return to an existing account page; direct links fall back to history.
@@ -38,8 +38,9 @@ export default function TransactionDetailsPage() {
         key={transaction.id}
         accounts={accounts}
         initialTransaction={transaction}
-        onAdd={(updated) => {
-          updateTransaction(updated);
+        onAdd={(updated, frequency) => {
+          if (frequency) convertToRecurring(updated, frequency);
+          else updateTransaction(updated);
           navigate(returnTo);
         }}
       />

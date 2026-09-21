@@ -1,3 +1,6 @@
+import { catchUp, localDate } from "../utils/recurring";
+import type { TransactionLedger } from "../utils/recurring";
+import type { Frequency, RecurringTransaction } from "../types/RecurringTransaction";
 import {
   createContext,
   useContext,
@@ -14,7 +17,13 @@ import type { Transaction } from "../types/Transactions";
 const ACCOUNTS_STORAGE_KEY = "budget-tracker-accounts";
 const TRANSACTIONS_STORAGE_KEY = "budget-tracker-transactions";
 
+const LEDGER_STORAGE_KEY = "budget-tracker-ledger";
+
 interface FinanceContextValue {
+  schedules: RecurringTransaction[];
+  addRecurringTransaction: (transaction: Transaction, frequency: Frequency) => void;
+  convertToRecurring: (transaction: Transaction, frequency: Frequency) => void;
+  stopRecurringTransaction: (id: string) => void;
   accounts: Account[];
   transactions: Transaction[];
   addAccount: (account: Account) => void;
@@ -57,14 +66,60 @@ export function FinanceProvider({
     migrateAccounts(loadFromLocalStorage(ACCOUNTS_STORAGE_KEY, [])),
   );
 
-  const [transactions, setTransactions] = useState<
-    Transaction[]
-  >(() =>
-    loadFromLocalStorage<Transaction[]>(
-      TRANSACTIONS_STORAGE_KEY,
-      [],
-    ),
-  );
+  const [ledger, setLedger] = useState<TransactionLedger>(() => {
+    const saved = loadFromLocalStorage<TransactionLedger | null>(LEDGER_STORAGE_KEY, null);
+    return catchUp(saved && Array.isArray(saved.transactions) && Array.isArray(saved.schedules)
+      ? saved
+      : { transactions: loadFromLocalStorage<Transaction[]>(TRANSACTIONS_STORAGE_KEY, []), schedules: [] }, localDate());
+  });
+  const { transactions, schedules } = ledger;
+  function setTransactions(update: (current: Transaction[]) => Transaction[]) {
+    setLedger((current) => ({ ...current, transactions: update(current.transactions) }));
+  }
+
+  // Store occurrences and their schedule progress together, including deletions.
+  useEffect(() => {
+    localStorage.setItem(LEDGER_STORAGE_KEY, JSON.stringify(ledger));
+  }, [ledger]);
+
+  useEffect(() => {
+    const check = () => setLedger((current) => catchUp(current, localDate()));
+    const onVisible = () => { if (document.visibilityState === "visible") check(); };
+    const interval = window.setInterval(check, 60000);
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
+  function addRecurringTransaction(transaction: Transaction, frequency: Frequency) {
+    const { date, ...template } = transaction;
+    setLedger((current) => catchUp({ ...current, schedules: [...current.schedules,
+      { ...template, frequency, startDate: date, nextDueDate: date }],
+    }, localDate()));
+  }
+
+  function convertToRecurring(transaction: Transaction, frequency: Frequency) {
+    const { date, ...template } = transaction;
+    setLedger((current) => {
+      if (transaction.id.startsWith("recurring:") ||
+          !current.transactions.some((item) => item.id === transaction.id) ||
+          current.schedules.some((schedule) => schedule.id === transaction.id)) return current;
+      // Replace the one-time entry with its scheduled occurrence atomically.
+      return catchUp({
+        transactions: current.transactions.filter((item) => item.id !== transaction.id),
+        schedules: [...current.schedules,
+          { ...template, frequency, startDate: date, nextDueDate: date }],
+      }, localDate());
+    });
+  }
+
+  function stopRecurringTransaction(id: string) {
+    setLedger((current) => ({ ...current, schedules: current.schedules.filter((schedule) => schedule.id !== id) }));
+  }
 
   useEffect(() => {
     localStorage.setItem(
@@ -100,12 +155,10 @@ export function FinanceProvider({
       ),
     );
 
-    setTransactions((currentTransactions) =>
-      currentTransactions.filter(
-        (transaction) =>
-          transaction.accountId !== accountId,
-      ),
-    );
+    setLedger((current) => ({
+      transactions: current.transactions.filter((transaction) => transaction.accountId !== accountId),
+      schedules: current.schedules.filter((schedule) => schedule.accountId !== accountId),
+    }));
   }
 
   function addTransaction(transaction: Transaction) {
@@ -134,6 +187,10 @@ export function FinanceProvider({
     () => ({
       accounts,
       transactions,
+      schedules,
+      addRecurringTransaction,
+      convertToRecurring,
+      stopRecurringTransaction,
       addAccount,
       updateAccount,
       deleteAccount,
@@ -141,7 +198,7 @@ export function FinanceProvider({
       deleteTransaction,
       updateTransaction,
     }),
-    [accounts, transactions],
+    [accounts, transactions, schedules],
   );
 
   return (
